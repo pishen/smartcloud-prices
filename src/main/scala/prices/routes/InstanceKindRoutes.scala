@@ -27,7 +27,7 @@ final case class InstanceKindRoutes[F[_]: Sync](instanceKindService: InstanceKin
   def tryUpdate(kind: String): F[Map[String, InstancePrice]] = {
     prices.evalUpdateAndGet { priceMap =>
       priceMap.get(kind).filterNot(isExpire) match {
-        case Some(_) => Sync[F].pure(priceMap)
+        case Some(_) => priceMap.pure[F]
         case None => instanceKindService.getPrice(kind).map(ip => priceMap + (kind -> ip))
       }
     }
@@ -41,7 +41,7 @@ final case class InstanceKindRoutes[F[_]: Sync](instanceKindService: InstanceKin
         priceMap <- prices.get
         updatedPriceMap <- priceMap.get(kind) match {
           case Some(ip) =>
-            if (isExpire(ip)) tryUpdate(kind) else Sync[F].pure(priceMap)
+            if (isExpire(ip)) tryUpdate(kind) else priceMap.pure[F]
           case None => tryUpdate(kind)
         }
       } yield {
