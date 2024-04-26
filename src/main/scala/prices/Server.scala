@@ -12,6 +12,8 @@ import prices.services.SmartcloudInstanceKindService
 import sttp.client3.SttpBackend
 import sttp.client3.http4s.Http4sBackend
 import sttp.capabilities.fs2.Fs2Streams
+import cats.effect.std.AtomicCell
+import prices.data.InstancePrice
 
 object Server {
 
@@ -24,21 +26,26 @@ object Server {
       )
     )
 
-    def httpApp(
+    def httpApp(cachedPrices: AtomicCell[IO, Map[String, InstancePrice]], expireInterval: Int)(
         implicit
         backend: SttpBackend[IO, Fs2Streams[IO]]
     ) = (
-      InstanceKindRoutes[IO](instanceKindService).routes
+      InstanceKindRoutes[IO](instanceKindService, cachedPrices, expireInterval).routes
     ).orNotFound
 
     val server = Http4sBackend.usingDefaultEmberClientBuilder[IO]().use { backend =>
-      EmberServerBuilder
-        .default[IO]
-        .withHost(Host.fromString(config.app.host).get)
-        .withPort(Port.fromInt(config.app.port).get)
-        .withHttpApp(Logger.httpApp(true, true)(httpApp(backend)))
-        .build
-        .useForever
+      for {
+        expireInterval <- instanceKindService.getExpireInterval()(backend)
+        _ = println("expireInterval: " + expireInterval)
+        cachedPrices <- AtomicCell[IO].of(Map.empty[String, InstancePrice])
+        server <- EmberServerBuilder
+                    .default[IO]
+                    .withHost(Host.fromString(config.app.host).get)
+                    .withPort(Port.fromInt(config.app.port).get)
+                    .withHttpApp(Logger.httpApp(true, true)(httpApp(cachedPrices, expireInterval)(backend)))
+                    .build
+                    .useForever
+      } yield server
     }
 
     Stream.eval(server)

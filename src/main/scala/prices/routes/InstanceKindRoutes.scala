@@ -11,8 +11,14 @@ import prices.routes.protocol._
 import prices.services.InstanceKindService
 import sttp.client3.SttpBackend
 import sttp.capabilities.fs2.Fs2Streams
+import cats.effect.std.AtomicCell
+import prices.data.InstancePrice
 
-final case class InstanceKindRoutes[F[_]: Sync](instanceKindService: InstanceKindService[F])(
+final case class InstanceKindRoutes[F[_]: Sync](
+    instanceKindService: InstanceKindService[F],
+    cachedPrices: AtomicCell[F, Map[String, InstancePrice]],
+    expireInterval: Int
+)(
     implicit
     backend: SttpBackend[F, Fs2Streams[F]]
 ) extends Http4sDsl[F] {
