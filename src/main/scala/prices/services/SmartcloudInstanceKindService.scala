@@ -12,6 +12,7 @@ import sttp.capabilities.fs2.Fs2Streams
 import retry._
 import retry.RetryDetails._
 import scala.concurrent.duration._
+import io.circe.generic.auto._
 
 object SmartcloudInstanceKindService {
 
@@ -51,6 +52,29 @@ object SmartcloudInstanceKindService {
         .send(backend)
         .map { resp =>
           resp.body.toTry.get.map(InstanceKind(_))
+        }
+    }
+
+    override def getExpireInterval()(
+        implicit
+        backend: SttpBackend[F, Fs2Streams[F]]
+    ): F[Int] = getAll().map { kinds =>
+      val numOfKinds = kinds.size
+      86400 / (999 / numOfKinds) + 1
+    }
+
+    override def getPrice(kind: String)(
+        implicit
+        backend: SttpBackend[F, Fs2Streams[F]]
+    ): F[InstancePrice] = retryingOnAllErrors(retryPolicy, logError) {
+      basicRequest
+        .get(uri"${config.baseUri}/instances/$kind")
+        .auth
+        .bearer(config.token)
+        .response(asJson[InstancePrice])
+        .send(backend)
+        .map { resp =>
+          resp.body.toTry.get
         }
     }
 

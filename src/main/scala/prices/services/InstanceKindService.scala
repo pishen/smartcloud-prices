@@ -11,6 +11,16 @@ trait InstanceKindService[F[_]] {
       implicit
       backend: SttpBackend[F, Fs2Streams[F]]
   ): F[List[InstanceKind]]
+
+  def getExpireInterval()(
+      implicit
+      backend: SttpBackend[F, Fs2Streams[F]]
+  ): F[Int]
+
+  def getPrice(kind: String)(
+      implicit
+      backend: SttpBackend[F, Fs2Streams[F]]
+  ): F[InstancePrice]
 }
 
 object InstanceKindService {
