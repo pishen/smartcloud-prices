@@ -9,6 +9,9 @@ import prices.data._
 import sttp.client3._
 import sttp.client3.circe._
 import sttp.capabilities.fs2.Fs2Streams
+import retry._
+import retry.RetryDetails._
+import scala.concurrent.duration._
 
 object SmartcloudInstanceKindService {
 
@@ -17,20 +20,29 @@ object SmartcloudInstanceKindService {
       token: String
   )
 
-  def make[F[_]: Concurrent](config: Config): InstanceKindService[F] = new SmartcloudInstanceKindService(config)
+  def make[F[_]: Async](config: Config): InstanceKindService[F] = new SmartcloudInstanceKindService(config)
 
-  private final class SmartcloudInstanceKindService[F[_]: Concurrent](
+  private final class SmartcloudInstanceKindService[F[_]: Async](
       config: Config
   ) extends InstanceKindService[F] {
 
     implicit val instanceKindsEntityDecoder: EntityDecoder[F, List[String]] = jsonOf[F, List[String]]
+
+    val retryPolicy = RetryPolicies.limitRetries[F](10) join RetryPolicies.exponentialBackoff[F](100.milliseconds)
+
+    def logError(err: Throwable, details: RetryDetails): F[Unit] = details match {
+      case WillDelayAndRetry(_, retriesSoFar: Int, _) =>
+        s"Failed with $err. Retried $retriesSoFar times.".pure[F].map(println)
+      case GivingUp(totalRetries: Int, _) =>
+        s"Failed with $err. Giving up after retrying $totalRetries times.".pure[F].map(println)
+    }
 
     val getAllUri = uri"${config.baseUri}/instances"
 
     override def getAll()(
         implicit
         backend: SttpBackend[F, Fs2Streams[F]]
-    ): F[List[InstanceKind]] =
+    ): F[List[InstanceKind]] = retryingOnAllErrors(retryPolicy, logError) {
       basicRequest
         .get(getAllUri)
         .auth
@@ -38,8 +50,9 @@ object SmartcloudInstanceKindService {
         .response(asJson[List[String]])
         .send(backend)
         .map { resp =>
-          resp.body.toOption.get.map(InstanceKind(_))
+          resp.body.toTry.get.map(InstanceKind(_))
         }
+    }
 
   }
 
