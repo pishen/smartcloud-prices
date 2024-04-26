@@ -9,6 +9,8 @@ import org.http4s.server.middleware.Logger
 import prices.config.Config
 import prices.routes.InstanceKindRoutes
 import prices.services.SmartcloudInstanceKindService
+import cats.effect.std.AtomicCell
+import prices.data.InstancePrice
 
 object Server {
 
@@ -21,20 +23,24 @@ object Server {
       )
     )
 
-    val httpApp = (
-      InstanceKindRoutes[IO](instanceKindService).routes
+    def httpApp(prices: AtomicCell[IO, Map[String, InstancePrice]], expireInterval: Int) = (
+      InstanceKindRoutes[IO](instanceKindService, prices, expireInterval).routes
     ).orNotFound
 
-    Stream
-      .eval(
-        EmberServerBuilder
-          .default[IO]
-          .withHost(Host.fromString(config.app.host).get)
-          .withPort(Port.fromInt(config.app.port).get)
-          .withHttpApp(Logger.httpApp(true, true)(httpApp))
-          .build
-          .useForever
-      )
+    val server = for {
+      expireInterval <- instanceKindService.getExpireInterval()
+      _ = println("expireInterval: " + expireInterval)
+      prices <- AtomicCell[IO].of(Map.empty[String, InstancePrice])
+      server <- EmberServerBuilder
+        .default[IO]
+        .withHost(Host.fromString(config.app.host).get)
+        .withPort(Port.fromInt(config.app.port).get)
+        .withHttpApp(Logger.httpApp(true, true)(httpApp(prices, expireInterval)))
+        .build
+        .useForever
+    } yield server
+
+    Stream.eval(server)
   }
 
 }
