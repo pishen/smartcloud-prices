@@ -12,13 +12,13 @@ import prices.services.InstanceKindService
 import sttp.client3.SttpBackend
 import sttp.capabilities.fs2.Fs2Streams
 import cats.effect.std.AtomicCell
-import prices.data.InstancePrice
 import io.circe.syntax._
 import cats.data.Validated
+import prices.data.InstancePriceWithTime
 
 final case class InstanceKindRoutes[F[_]: Sync](
     instanceKindService: InstanceKindService[F],
-    cachedPrices: AtomicCell[F, Map[String, InstancePrice]],
+    cachedPrices: AtomicCell[F, Map[String, InstancePriceWithTime]],
     expireInterval: Int
 )(
     implicit

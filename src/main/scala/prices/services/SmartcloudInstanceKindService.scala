@@ -66,12 +66,12 @@ object SmartcloudInstanceKindService {
     override def getPrice(kind: String)(
         implicit
         backend: SttpBackend[F, Fs2Streams[F]]
-    ): F[InstancePrice] = retryingOnAllErrors(retryPolicy, logError) {
+    ): F[InstancePriceWithTime] = retryingOnAllErrors(retryPolicy, logError) {
       basicRequest
         .get(uri"${config.baseUri}/instances/$kind")
         .auth
         .bearer(config.token)
-        .response(asJson[InstancePrice])
+        .response(asJson[InstancePriceWithTime])
         .send(backend)
         .map { resp =>
           resp.body.toTry.get

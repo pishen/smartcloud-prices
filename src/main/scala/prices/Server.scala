@@ -13,7 +13,7 @@ import sttp.client3.SttpBackend
 import sttp.client3.http4s.Http4sBackend
 import sttp.capabilities.fs2.Fs2Streams
 import cats.effect.std.AtomicCell
-import prices.data.InstancePrice
+import prices.data.InstancePriceWithTime
 
 object Server {
 
@@ -26,7 +26,7 @@ object Server {
       )
     )
 
-    def httpApp(cachedPrices: AtomicCell[IO, Map[String, InstancePrice]], expireInterval: Int)(
+    def httpApp(cachedPrices: AtomicCell[IO, Map[String, InstancePriceWithTime]], expireInterval: Int)(
         implicit
         backend: SttpBackend[IO, Fs2Streams[IO]]
     ) = (
@@ -37,7 +37,7 @@ object Server {
       for {
         expireInterval <- instanceKindService.getExpireInterval()(backend)
         _ = println("expireInterval: " + expireInterval)
-        cachedPrices <- AtomicCell[IO].of(Map.empty[String, InstancePrice])
+        cachedPrices <- AtomicCell[IO].of(Map.empty[String, InstancePriceWithTime])
         server <- EmberServerBuilder
                     .default[IO]
                     .withHost(Host.fromString(config.app.host).get)

@@ -20,7 +20,7 @@ trait InstanceKindService[F[_]] {
   def getPrice(kind: String)(
       implicit
       backend: SttpBackend[F, Fs2Streams[F]]
-  ): F[InstancePrice]
+  ): F[InstancePriceWithTime]
 }
 
 object InstanceKindService {
