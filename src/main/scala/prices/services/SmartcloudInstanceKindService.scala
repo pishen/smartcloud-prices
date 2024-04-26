@@ -6,6 +6,9 @@ import org.http4s._
 import org.http4s.circe._
 
 import prices.data._
+import sttp.client3._
+import sttp.client3.circe._
+import sttp.capabilities.fs2.Fs2Streams
 
 object SmartcloudInstanceKindService {
 
@@ -22,12 +25,21 @@ object SmartcloudInstanceKindService {
 
     implicit val instanceKindsEntityDecoder: EntityDecoder[F, List[String]] = jsonOf[F, List[String]]
 
-    val getAllUri = s"${config.baseUri}/instances"
+    val getAllUri = uri"${config.baseUri}/instances"
 
-    override def getAll(): F[List[InstanceKind]] =
-      List("sc2-micro", "sc2-small", "sc2-medium") // Dummy data. Your implementation should call the smartcloud API.
-        .map(InstanceKind(_))
-        .pure[F]
+    override def getAll()(
+        implicit
+        backend: SttpBackend[F, Fs2Streams[F]]
+    ): F[List[InstanceKind]] =
+      basicRequest
+        .get(getAllUri)
+        .auth
+        .bearer(config.token)
+        .response(asJson[List[String]])
+        .send(backend)
+        .map { resp =>
+          resp.body.toOption.get.map(InstanceKind(_))
+        }
 
   }
 

@@ -9,8 +9,13 @@ import org.http4s.server.Router
 
 import prices.routes.protocol._
 import prices.services.InstanceKindService
+import sttp.client3.SttpBackend
+import sttp.capabilities.fs2.Fs2Streams
 
-final case class InstanceKindRoutes[F[_]: Sync](instanceKindService: InstanceKindService[F]) extends Http4sDsl[F] {
+final case class InstanceKindRoutes[F[_]: Sync](instanceKindService: InstanceKindService[F])(
+    implicit
+    backend: SttpBackend[F, Fs2Streams[F]]
+) extends Http4sDsl[F] {
 
   val prefix = "/instance-kinds"
 
