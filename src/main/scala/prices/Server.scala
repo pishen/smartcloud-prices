@@ -35,7 +35,7 @@ object Server {
 
     val server = Http4sBackend.usingDefaultEmberClientBuilder[IO]().use { backend =>
       for {
-        expireInterval <- instanceKindService.getExpireInterval()(backend)
+        expireInterval <- config.app.expireInterval.map(IO.pure).getOrElse(instanceKindService.getExpireInterval()(backend))
         _ = println("expireInterval: " + expireInterval)
         cachedPrices <- AtomicCell[IO].of(Map.empty[String, InstancePriceWithTime])
         server <- EmberServerBuilder
