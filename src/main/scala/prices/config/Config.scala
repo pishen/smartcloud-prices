@@ -14,7 +14,8 @@ object Config {
 
   case class AppConfig(
       host: String,
-      port: Int
+      port: Int,
+      expireInterval: Option[Int]
   )
 
   case class SmartcloudConfig(
