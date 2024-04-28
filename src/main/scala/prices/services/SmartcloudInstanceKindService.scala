@@ -50,8 +50,11 @@ object SmartcloudInstanceKindService {
         .bearer(config.token)
         .response(asJson[List[String]])
         .send(backend)
-        .map { resp =>
-          resp.body.toTry.get.map(InstanceKind(_))
+        .flatMap { resp =>
+          resp.body match {
+            case Right(kinds) => kinds.map(InstanceKind(_)).pure[F]
+            case Left(e)      => e.raiseError[F, List[InstanceKind]]
+          }
         }
     }
 
@@ -73,8 +76,11 @@ object SmartcloudInstanceKindService {
         .bearer(config.token)
         .response(asJson[InstancePriceWithTime])
         .send(backend)
-        .map { resp =>
-          resp.body.toTry.get
+        .flatMap { resp =>
+          resp.body match {
+            case Right(value) => value.pure[F]
+            case Left(e)      => e.raiseError[F, InstancePriceWithTime]
+          }
         }
     }
 
