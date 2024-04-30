@@ -18,8 +18,9 @@ import cats.data.Validated
 import prices.data.InstancePriceWithTime
 import prices.data.InstancePrice
 import java.time._
+import cats.Parallel
 
-final case class InstanceKindRoutes[F[_]: Sync](
+final case class InstanceKindRoutes[F[_]: Sync: Parallel](
     instanceKindService: InstanceKindService[F],
     cachedPrices: AtomicCell[F, Map[String, InstancePriceWithTime]],
     expireInterval: Int
@@ -60,13 +61,13 @@ final case class InstanceKindRoutes[F[_]: Sync](
       val kinds = firstKind +: others
       val res = for {
         prices <- cachedPrices.get
-        updatedPrices <- kinds.map { kind =>
+        updatedPrices <- kinds.parTraverse { kind =>
                            prices.get(kind) match {
                              case Some(price) =>
                                if (isExpire(price)) tryUpdate(kind) else price.pure[F]
                              case None => tryUpdate(kind)
                            }
-                         }.sequence
+                         }
       } yield updatedPrices.map(price => InstancePrice(price.kind, price.price).asJson.noSpaces).mkString(",")
       Ok(res)
   }
