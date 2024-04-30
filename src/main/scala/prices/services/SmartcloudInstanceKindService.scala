@@ -21,9 +21,9 @@ object SmartcloudInstanceKindService {
       token: String
   )
 
-  def make[F[_]: Async](config: Config): InstanceKindService[F] = new SmartcloudInstanceKindService(config)
+  def make[F[_]: Temporal](config: Config): InstanceKindService[F] = new SmartcloudInstanceKindService(config)
 
-  private final class SmartcloudInstanceKindService[F[_]: Async](
+  private final class SmartcloudInstanceKindService[F[_]: Temporal](
       config: Config
   ) extends InstanceKindService[F] {
 
